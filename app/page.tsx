@@ -1,5 +1,15 @@
 import { redirect } from "next/navigation";
 
-export default function Home() {
-  redirect("/login");
+import {
+  DEFAULT_AUTHENTICATED_ROUTE,
+  DEFAULT_UNAUTHENTICATED_ROUTE,
+  isAuthenticated,
+} from "@/lib/auth";
+
+export default async function Home() {
+  redirect(
+    (await isAuthenticated())
+      ? DEFAULT_AUTHENTICATED_ROUTE
+      : DEFAULT_UNAUTHENTICATED_ROUTE
+  );
 }
