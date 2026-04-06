@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import {
+  DEFAULT_AUTHENTICATED_ROUTE,
+  setIsAuthenticated,
+} from "@/lib/auth";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -16,6 +23,12 @@ export default function SignupPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsAuthenticated(true);
+    router.push(DEFAULT_AUTHENTICATED_ROUTE);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f5f5f5] px-4">
       <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-md border border-gray-200">
@@ -26,7 +39,7 @@ export default function SignupPage() {
           Get started in a minute
         </h1>
 
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
 
           {/* Name */}
           <div>
@@ -87,11 +100,13 @@ export default function SignupPage() {
             />
           </div>
 
-        </div>
-
-        <button className="w-full mt-6 bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition">
-          Create account
-        </button>
+          <button
+            type="submit"
+            className="w-full mt-6 bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition"
+          >
+            Create account
+          </button>
+        </form>
 
         <p className="text-sm text-gray-500 text-center mt-6">
           Already have an account?{" "}
