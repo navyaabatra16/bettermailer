@@ -88,6 +88,10 @@ export default function SignupPage() {
             <p className="text-sm text-red-600">{state.error}</p>
           ) : null}
 
+          {state.error ? (
+            <p className="text-sm text-red-600">{state.error}</p>
+          ) : null}
+
           <button
             type="submit"
             disabled={pending}

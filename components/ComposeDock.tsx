@@ -126,7 +126,7 @@ function getTemplateDefinition(
   return null;
 }
 
-export default function ComposeDock() {
+export default function ComposeDock({ userEmail }: { userEmail: string }) {
   const [composeState, setComposeState] = useState<ComposeState>("closed");
   const [composeSize, setComposeSize] = useState({ width: 480, height: 620 });
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -139,6 +139,8 @@ export default function ComposeDock() {
   );
   const [customTemplateError, setCustomTemplateError] = useState("");
   const [draft, setDraft] = useState(INITIAL_DRAFT);
+  const [sendError, setSendError] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const toInputRef = useRef<HTMLInputElement>(null);
   const hasLoadedCustomTemplatesRef = useRef(false);
   const resizeStateRef = useRef<{
@@ -160,6 +162,7 @@ export default function ComposeDock() {
   };
 
   const openCompose = () => {
+    setSendError("");
     setComposeState("open");
   };
 
@@ -169,6 +172,8 @@ export default function ComposeDock() {
     setIsCcVisible(false);
     setIsBccVisible(false);
     setCustomTemplateError("");
+    setSendError("");
+    setIsSending(false);
   };
 
   const minimizeCompose = () => {
@@ -227,6 +232,22 @@ export default function ComposeDock() {
     });
   };
 
+  const validateDraft = () => {
+    if (!draft.to.trim()) {
+      return "Add at least one recipient.";
+    }
+
+    if (!draft.subject.trim()) {
+      return "Add a subject before sending.";
+    }
+
+    if (!draft.body.trim()) {
+      return "Write a message before sending.";
+    }
+
+    return "";
+  };
+
   const openCustomTagEditor = () => {
     setIsCustomTagEditorOpen(true);
     setCustomTemplateError("");
@@ -276,10 +297,53 @@ export default function ComposeDock() {
     }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    resetDraft();
-    closeCompose();
+
+    const validationError = validateDraft();
+
+    if (validationError) {
+      setSendError(validationError);
+      return;
+    }
+
+    setIsSending(true);
+    setSendError("");
+
+    try {
+      if (!userEmail) {
+        setSendError("Please log in before sending email.");
+        return;
+      }
+
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: userEmail,
+          to: draft.to,
+          subject: draft.subject,
+          message: draft.body,
+        }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setSendError(result.error ?? "Unable to send email right now.");
+        return;
+      }
+
+      window.dispatchEvent(new Event("mailbox:refresh"));
+      resetDraft();
+      closeCompose();
+    } catch {
+      setSendError("Unable to send email right now.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   useEffect(() => {
@@ -646,6 +710,7 @@ export default function ComposeDock() {
                     <input
                       ref={toInputRef}
                       type="email"
+                      required
                       value={draft.to}
                       onChange={(event) =>
                         updateDraftField("to", event.target.value)
@@ -708,6 +773,7 @@ export default function ComposeDock() {
                     <span className="gmail-compose-inline-label">Subject</span>
                     <input
                       type="text"
+                      required
                       value={draft.subject}
                       onChange={(event) =>
                         updateDraftField("subject", event.target.value)
@@ -720,6 +786,7 @@ export default function ComposeDock() {
                 <label className="gmail-compose-editor">
                   <span className="gmail-compose-field-label">Message</span>
                   <textarea
+                    required
                     value={draft.body}
                     onChange={(event) =>
                       updateDraftField("body", event.target.value)
@@ -732,8 +799,12 @@ export default function ComposeDock() {
 
               <footer className="gmail-compose-footer">
                 <div className="gmail-compose-footer-left">
-                  <button type="submit" className="gmail-send-button">
-                    Send
+                  <button
+                    type="submit"
+                    className="gmail-send-button"
+                    disabled={isSending}
+                  >
+                    {isSending ? "Sending..." : "Send"}
                   </button>
 
                   <div
@@ -764,9 +835,11 @@ export default function ComposeDock() {
                 </div>
 
                 <p className="gmail-compose-note">
-                  {selectedTemplateLabel
-                    ? `${selectedTemplateLabel} template applied`
-                    : "Choose a template or start from scratch"}
+                  {sendError
+                    ? sendError
+                    : selectedTemplateLabel
+                      ? `${selectedTemplateLabel} template applied`
+                      : "Choose a template or start from scratch"}
                 </p>
               </footer>
             </form>

@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { db } from "@/app/src/db";
+import { users } from "@/app/src/db/schema";
 
 export const DEFAULT_AUTHENTICATED_ROUTE = "/home";
 export const DEFAULT_UNAUTHENTICATED_ROUTE = "/signup";
@@ -9,6 +12,22 @@ const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 export async function getSessionUserId(): Promise<string | null> {
   return (await cookies()).get(SESSION_COOKIE_NAME)?.value ?? null;
+}
+
+export async function getSessionUserEmail(): Promise<string | null> {
+  const userId = await getSessionUserId();
+
+  if (!userId) {
+    return null;
+  }
+
+  const result = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return result[0]?.email ?? null;
 }
 
 export async function isAuthenticated(): Promise<boolean> {

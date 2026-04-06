@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/app/src/db";
-import { users } from "@/app/src/db/schema";
-import { eq } from "drizzle-orm";
+import { verifyUserAccount } from "@/lib/user-auth";
 
 export type SigninState = {
   error: string | null;
@@ -14,31 +12,12 @@ export async function signinAction(
   formData: FormData
 ): Promise<SigninState> {
   try {
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-
-    if (!email || !password) {
-      return { ...prevState, error: "Missing credentials", success: null };
-    }
-
-    const result = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email));
-
-    const user = result[0];
-
-    if (!user) {
-      return { ...prevState, error: "User not found", success: null };
-    }
-
-    if (user.password !== password) {
-      return { ...prevState, error: "Invalid password", success: null };
-    }
-
-    return { error: null, success: "Login successful" };
+    return await verifyUserAccount({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    });
   } catch (err) {
-    console.log(err);
-    return { ...prevState, error: "Server error", success: null };
+    console.error(err);
+    return { ...prevState, error: "Unable to sign in right now.", success: null };
   }
 }
